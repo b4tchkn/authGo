@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/dgrijalva/jwt-go"
+
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/gorilla/mux"
@@ -76,8 +78,9 @@ func signup(w http.ResponseWriter, r *http.Request) {
 		user.Password = string(hash)
 		fmt.Println("コンバート後のパスワード：", user.Password)
 
-		sql_query := "INSERT INTO USERS(EMAIL, PASSWORD) VALUES($1, $2) RETURNING ID"
+		sql_query := `INSERT INTO USERS(EMAIL, PASSWORD) VALUES($1, $2) RETURNING ID`
 
+		_, err = db.Exec(sql_query, user.Email, user.Password)
 		err = db.QueryRow(sql_query, user.Email, user.Password).Scan(&user.ID)
 
 		if err != nil {
@@ -92,32 +95,50 @@ func signup(w http.ResponseWriter, r *http.Request) {
 		responseByJSON(w, user)
 }
 
-func login(w http.ResponseWriter, r *http.Request) {
-    fmt.Println("login 関数実行")
-}
+func createToken(user User) (string, error) {
+	var err error
 
-func execDB(db *sql.DB, q string) {
-	if _, err := db.Exec(q); err != nil {
+	secret := "secret"
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"email": user.Email,
+		"iss": "__init__",
+	})
+
+	tokenString, err := token.SignedString([]byte(secret))
+
+	fmt.Println("---------------------")
+	fmt.Println("tokenString:", tokenString)
+
+	if err != nil {
 		log.Fatal(err)
 	}
+
+	return tokenString, nil
+}
+
+func login(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("login 関数実行")
+		var user User
+		json.NewDecoder(r.Body).Decode(&user)
+		token, err := createToken(user)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Println(token)
 }
 
 var db *sql.DB
 
 func main() {
-/*
 	db, err := sql.Open("sqlite3", "./sample.sqlite3")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	q := `
-	select * from users
-	`
-
-	execDB(db, q)
-	db.Close()
-	*/
+	defer db.Close()
 
 	router := mux.NewRouter()
 
