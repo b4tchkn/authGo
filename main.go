@@ -78,10 +78,9 @@ func signup(w http.ResponseWriter, r *http.Request) {
 		user.Password = string(hash)
 		fmt.Println("コンバート後のパスワード：", user.Password)
 
-		sql_query := `INSERT INTO USERS(EMAIL, PASSWORD) VALUES($1, $2) RETURNING ID`
-
-		_, err = db.Exec(sql_query, user.Email, user.Password)
-		err = db.QueryRow(sql_query, user.Email, user.Password).Scan(&user.ID)
+		sqlQuery := "INSERT INTO users(email, password) VALUES(?, ?)"
+		_, err = db.Exec(sqlQuery, user.Email, user.Password)
+		err = db.QueryRow(sqlQuery, user.Email, user.Password).Scan(&user.ID)
 
 		if err != nil {
 			error.Message = "サーバエラー"
@@ -133,13 +132,11 @@ func login(w http.ResponseWriter, r *http.Request) {
 var db *sql.DB
 
 func main() {
-	db, err := sql.Open("sqlite3", "./sample.sqlite3")
+	var err error
+	db, err = sql.Open("sqlite3", "./sample.sqlite3")
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	defer db.Close()
-
 	router := mux.NewRouter()
 
 	router.HandleFunc("/signup", signup).Methods("POST")
