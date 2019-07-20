@@ -12,11 +12,11 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/gorilla/mux"
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 type User struct {
-	ID int `json:"id"`
+	ID int64 `json:"id"`
 	Email string `json:"email"`
 	Password string `json:"password"`
 }
@@ -61,7 +61,6 @@ func signup(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		//fmt.Println(user)
 
 		fmt.Println("---------------------")
 		//spew.Dump(user)
@@ -78,9 +77,18 @@ func signup(w http.ResponseWriter, r *http.Request) {
 		user.Password = string(hash)
 		fmt.Println("コンバート後のパスワード：", user.Password)
 
-		sqlQuery := "INSERT INTO users(email, password) VALUES(?, ?)"
-		_, err = db.Exec(sqlQuery, user.Email, user.Password)
-		err = db.QueryRow(sqlQuery, user.Email, user.Password).Scan(&user.ID)
+		result, err := db.Exec("INSERT INTO users(email, password) VALUES(?, ?)", user.Email, user.Password)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		user.ID, err = result.LastInsertId()
+		if err != nil {
+			log.Fatal(err)
+		}
+		//ins, err := db.Prepare("insert into users(email, password) values(?, ?)")
+		//ins.Exec(user.Email, user.Password)
 
 		if err != nil {
 			error.Message = "サーバエラー"
@@ -133,7 +141,7 @@ var db *sql.DB
 
 func main() {
 	var err error
-	db, err = sql.Open("sqlite3", "./sample.sqlite3")
+	db, err = sql.Open("mysql", "root:root@/auth")
 	if err != nil {
 		log.Fatal(err)
 	}
